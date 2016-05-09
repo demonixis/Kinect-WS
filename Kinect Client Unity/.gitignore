@@ -42,6 +42,3 @@ Temp/
 
 # Folders to keep
 !Assets/Vendors/InControl/Source/Debug/
-
-# I need to clean this folder first
-Assets/Demo
