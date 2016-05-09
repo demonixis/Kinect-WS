@@ -1,0 +1,106 @@
+<!DOCTYPE>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>Babylon.js + Kinect</title>
+		<style>
+			html, body {
+				overflow: hidden;
+				width   : 100%;
+				height  : 100%;
+				margin  : 0;
+				padding : 0;
+			}
+
+			#renderCanvas {
+				width   : 100%;
+				height  : 100%;
+				touch-action: none;
+			}
+		</style>
+	</head>
+	<bodies>
+		<canvas id="renderCanvas"></canvas>
+		<script src="Assets/Scripts/babylonjs-2.3.js"></script>
+
+		<!-- KinectJS SDK For Babylon.js -->
+		<script src="Assets/Scripts/KinectData.js"></script>
+		<script src="Assets/Scripts/KinectManager.js"></script>
+		<script src="Assets/Scripts/KinectObject.js"></script>
+		<script src="Assets/Scripts/KinectJoint.js"></script>
+		
+		<script>
+			// Kinect data
+			var bodies = null;
+			var joints = [];
+			
+			// Scene settings
+			var canvas = document.getElementById('renderCanvas');
+			var engine = new BABYLON.Engine(canvas, true);
+			var scene = new BABYLON.Scene(engine);
+			var camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 2, -2), scene);
+			camera.setTarget(BABYLON.Vector3.Zero());
+			camera.attachControl(canvas, true);
+
+			var light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+			light.intensity = 0.7;
+
+			var ground = BABYLON.Mesh.CreateGround("ground1", 6, 6, 2, scene);
+			ground.material = new BABYLON.StandardMaterial("groundMat", scene);
+			ground.material.diffuseTexture = new BABYLON.Texture("Assets/Textures/ground.png", scene);
+
+			// Création d'une material
+			var sMaterial = new BABYLON.StandardMaterial("skyboxMaterial", scene);
+			sMaterial.backFaceCulling = false;
+			sMaterial.reflectionTexture = new BABYLON.CubeTexture("Assets/Textures/skybox/skybox", scene);
+			sMaterial.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
+			
+			// Création d'un cube avec la material adaptée
+			var skybox = BABYLON.Mesh.CreateBox("skybox", 250, scene);
+			skybox.material = sMaterial;
+
+			light.excludedMeshes.push(skybox);
+			
+			// Debug bodies settings
+			var jointParent = new BABYLON.Mesh("Bodies", scene);
+			jointParent.isVisible = false;
+			jointParent.position.y += 1;
+
+			var jointMaterial = new BABYLON.StandardMaterial("JointMaterial", scene);
+			jointMaterial.diffuseTexture = new BABYLON.Texture("Assets/Textures/box.png", scene);
+
+			for (var i = 0; i < 25; i++) {
+				joints.push(BABYLON.Mesh.CreateSphere("sphere_" + i, 16, 0.25, scene));
+				joints[i].jointType = i;
+				joints[i].position.y = i * 0.2;
+				joints[i].scaling = new BABYLON.Vector3(0.4, 0.4, 0.4);
+				joints[i].parent = jointParent;
+				joints[i].material = jointMaterial;
+			}
+			
+			// Connection to the Kinect Server
+			var ws = new WebSocket("ws://127.0.0.1:8181");
+			ws.onopen = (e) => console.log("Connected to server");
+			ws.onerror = (e) => console.log("Error detected");
+			ws.onmessage = (e) => {
+				bodies = JSON.parse(e.data);
+			};
+			
+			// Start the engine
+			engine.runRenderLoop(function() {
+				if (bodies != null && bodies.length) {
+					var body = bodies[0];
+					for (var i = 0; i < 25; i++) {
+						var joint = body.Joints[joints[i].jointType];
+						joints[i].position.copyFromFloats(joint.Position.x, joint.Position.y, joint.Position.z);
+					}
+				}
+				scene.render();
+			});
+			
+			window.addEventListener('resize', function() {
+				engine.resize();
+			});
+		</script>
+	</bodies>
+</html>
